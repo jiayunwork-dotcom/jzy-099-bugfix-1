@@ -14,18 +14,26 @@ import math
 from .graph import Graph
 
 
+def _relaxable_heads(
+    graph: Graph, dist: dict[str, float]
+) -> set[str]:
+    """|V|-1 轮之后仍可松弛的边的终点集合。"""
+    heads: set[str] = set()
+    for e in graph.edges:
+        if dist[e.u] != math.inf and dist[e.u] + e.w < dist[e.v]:
+            heads.add(e.v)
+    return heads
+
+
 def find_negative_cycle(
     graph: Graph,
     dist: dict[str, float],
     pred: dict[str, str | None],
 ) -> list[str] | None:
-    x: str | None = None
-    for e in graph.edges:
-        if dist[e.u] != math.inf and dist[e.u] + e.w < dist[e.v]:
-            x = e.v
-            break
-    if x is None:
+    heads = _relaxable_heads(graph, dist)
+    if not heads:
         return None
+    x = next(iter(heads))
 
     # 沿前驱走 |V| 步，必然落在环上
     y = x
@@ -44,6 +52,31 @@ def find_negative_cycle(
     cycle.append(y)
     cycle.reverse()
     return cycle
+
+
+def find_unbounded_nodes(
+    graph: Graph, dist: dict[str, float]
+) -> list[str] | None:
+    """最短距离为 −∞（因从源点可达的负权环而不存在）的全部节点。
+
+    |V|-1 轮后仍可松弛的边，其终点的最短路不存在；从这些节点出发
+    沿有向边能走到的所有节点，最短路同样不存在（可以先绕环任意多圈
+    再过去）。按 graph.nodes 的顺序返回，保证输出稳定可测。
+    不存在可达负权环时返回 None。
+    """
+    seeds = _relaxable_heads(graph, dist)
+    if not seeds:
+        return None
+
+    unbounded: set[str] = set(seeds)
+    stack = list(seeds)
+    while stack:
+        u = stack.pop()
+        for e in graph.adj[u]:
+            if e.v not in unbounded:
+                unbounded.add(e.v)
+                stack.append(e.v)
+    return [n for n in graph.nodes if n in unbounded]
 
 
 def cycle_weight(graph: Graph, cycle: list[str]) -> float:

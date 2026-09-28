@@ -21,6 +21,9 @@ export default function PathPanel({ run, finished, nodeIds, target, onTargetChan
   }
 
   if (run.status === "negative_cycle") {
+    const cycleNodes = (run.cycle ?? []).slice(0, -1);
+    const affected = run.unbounded_nodes ?? cycleNodes;
+    const downstream = affected.filter((n) => !cycleNodes.includes(n));
     return (
       <div className="panel">
         <h3>最短路径</h3>
@@ -30,6 +33,18 @@ export default function PathPanel({ run, finished, nodeIds, target, onTargetChan
         <p className="muted">
           负权环上的节点可以无限绕圈使路径权重任意小，因此不存在有限的最短距离。
         </p>
+        <div className="affected-list">
+          <div>
+            <span className="affected-label">距离为 −∞：</span>
+            <span className="mono affected-nodes">{affected.join("、") || "—"}</span>
+          </div>
+          {downstream.length > 0 && (
+            <div className="muted">
+              其中 {downstream.join("、")} 虽不在环上，但从环可达，先绕环任意多圈再过去
+              可使权重任意小，距离同样为 −∞。
+            </div>
+          )}
+        </div>
       </div>
     );
   }

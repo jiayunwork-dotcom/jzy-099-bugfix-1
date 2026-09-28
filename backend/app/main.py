@@ -64,7 +64,10 @@ def run(req: RunRequest) -> dict:
         steps, dist, pred, cycle = bellman_ford(graph, req.source)
 
     if cycle is not None:
-        # 存在负权环：如实报告，绝不返回有限的最短距离
+        # 存在负权环：如实报告，绝不返回有限的最短距离；
+        # unbounded_nodes 由后端判定，列出所有距离为 −∞ 的节点（环 + 环下游）
+        unbounded = steps[-1].get("unbounded_nodes")
+        assert isinstance(unbounded, list)
         return {
             "status": "negative_cycle",
             "algorithm": req.algorithm,
@@ -73,6 +76,7 @@ def run(req: RunRequest) -> dict:
             "distances": None,
             "paths": None,
             "cycle": cycle,
+            "unbounded_nodes": unbounded,
         }
 
     assert dist is not None and pred is not None

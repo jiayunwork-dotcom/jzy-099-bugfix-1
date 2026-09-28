@@ -62,7 +62,70 @@ def test_bellman_ford_reports_negative_cycle():
     assert data["distances"] is None, "有负权环时不得返回有限距离"
     assert data["paths"] is None
     assert set(data["cycle"][:-1]) == {"B", "C", "D"}
-    assert data["steps"][-1]["kind"] == "cycle"
+    assert data["unbounded_nodes"] == ["B", "C", "D"]
+    last = data["steps"][-1]
+    assert last["kind"] == "cycle"
+    assert last["unbounded_nodes"] == ["B", "C", "D"]
+
+
+def test_negative_cycle_affected_nodes_include_downstream_only():
+    # 自定义图：环 B→C→D→B；E 只在环下游、自身不在环上；
+    # S/A/F 不受环影响，距离确定（S=0、A=2、F=5）
+    body = {
+        "graph": {
+            "nodes": ["S", "A", "B", "C", "D", "E", "F"],
+            "edges": [
+                {"u": "S", "v": "A", "w": 2},
+                {"u": "A", "v": "B", "w": 1},
+                {"u": "B", "v": "C", "w": -1},
+                {"u": "C", "v": "D", "w": -1},
+                {"u": "D", "v": "B", "w": -1},
+                {"u": "D", "v": "E", "w": 4},
+                {"u": "A", "v": "F", "w": 3},
+            ],
+        },
+        "source": "S",
+        "algorithm": "bellman-ford",
+    }
+    data = client.post("/api/run", json=body).json()
+    assert data["status"] == "negative_cycle"
+    assert data["distances"] is None
+    # 受影响节点由后端判定：环上三点 + 只在下游的 E
+    assert data["unbounded_nodes"] == ["B", "C", "D", "E"]
+    last = data["steps"][-1]
+    # 结论这一步受影响节点不以有限数出现
+    assert last["distances"] == {
+        "S": 0, "A": 2, "B": None, "C": None,
+        "D": None, "E": None, "F": 5,
+    }
+    assert last["unbounded_nodes"] == ["B", "C", "D", "E"]
+    # 检测之前的步骤不提前给出 −∞ 判定
+    for s in data["steps"][:-1]:
+        assert s["unbounded_nodes"] is None
+    # 但逐轮松弛过程照实播放（末轮松弛后的中间数值）
+    assert data["steps"][-2]["distances"] == {
+        "S": 0, "A": 2, "B": -15, "C": -13,
+        "D": -14, "E": -10, "F": 5,
+    }
+
+
+def test_unreachable_negative_cycle_does_not_affect_result():
+    body = {
+        "graph": {
+            "nodes": ["S", "X", "Y", "Z"],
+            "edges": [
+                {"u": "X", "v": "Y", "w": 1},
+                {"u": "Y", "v": "Z", "w": -3},
+                {"u": "Z", "v": "X", "w": 1},
+            ],
+        },
+        "source": "S",
+        "algorithm": "bellman-ford",
+    }
+    data = client.post("/api/run", json=body).json()
+    assert data["status"] == "ok"
+    assert data["cycle"] is None
+    assert data["distances"] == {"S": 0, "X": None, "Y": None, "Z": None}
 
 
 def test_unreachable_distance_is_null():

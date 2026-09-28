@@ -28,17 +28,30 @@ def make_step(
     relaxed: bool = False,
     queue: list[dict] | None = None,
     round_: int | None = None,
+    unbounded: list[str] | None = None,
 ) -> dict:
+    """构造一步快照。
+
+    unbounded 给出「最短距离为 −∞」的节点：只在检测到负权环的最后一步
+    传入，这些节点的距离序列化为 null 并额外放进 unbounded_nodes，
+    让前端能把「−∞ / 不存在」与「不可达的 ∞」区分开。其余步骤一律不传，
+    逐轮松弛过程里的中间距离保持原样。
+    """
+    unbounded_set = set(unbounded or [])
     return {
         "kind": kind,
         "message": message,
         "edge": None if edge is None else {"u": edge.u, "v": edge.v, "w": edge.w},
         "relaxed": relaxed,
-        "distances": snapshot_distances(dist),
+        "distances": {
+            n: (None if n in unbounded_set or d == math.inf else d)
+            for n, d in dist.items()
+        },
         "predecessors": dict(pred),
         "settled": list(settled),
         "queue": queue,
         "round": round_,
+        "unbounded_nodes": list(unbounded) if unbounded is not None else None,
     }
 
 

@@ -347,8 +347,34 @@ table {
   background: #f0fdf4;
 }
 
+.dist-table tr.unbounded td {
+  background: #fef2f2;
+}
+
 .dist-table td.inf {
   color: var(--muted);
+}
+
+.dist-table td.neg-inf {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.affected-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.affected-label {
+  font-weight: 600;
+}
+
+.affected-nodes {
+  font-weight: 700;
+  color: var(--danger);
 }
 
 .matrix-scroll {

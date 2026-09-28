@@ -82,6 +82,67 @@ def test_no_false_positive_cycle_on_preset_2():
     assert dist == {"s": 0, "t": 2, "x": 4, "y": 7, "z": -2}
 
 
+# ---------- 负权环影响范围：环上 + 环下游，未受影响节点照常 ----------
+
+def _downstream_cycle_graph() -> Graph:
+    # 环 B→C→D→B（总权 -3）；E 只在环下游、自身不在环上；F 与环无关
+    return Graph.from_pairs(
+        ["S", "A", "B", "C", "D", "E", "F"],
+        [
+            ("S", "A", 2),
+            ("A", "B", 1),
+            ("B", "C", -1),
+            ("C", "D", -1),
+            ("D", "B", -1),
+            ("D", "E", 4),
+            ("A", "F", 3),
+        ],
+    )
+
+
+def test_negative_cycle_marks_ring_and_downstream_as_unbounded():
+    g = _downstream_cycle_graph()
+    steps, dist, pred, cycle = bellman_ford(g, "S")
+    assert cycle is not None
+    assert set(cycle[:-1]) == {"B", "C", "D"}
+    assert dist is None and pred is None
+
+    last = steps[-1]
+    assert last["kind"] == "cycle"
+    # 受影响集合由最后一步快照带出：环上三点 + 只在下游的 E
+    assert last["unbounded_nodes"] == ["B", "C", "D", "E"]
+    # 结论这一步：受影响节点不再出现有限数（null 表示 −∞）
+    for n in ["B", "C", "D", "E"]:
+        assert last["distances"][n] is None
+    # 环影响不到的节点：确定的有限距离照常保留
+    assert last["distances"] == {"S": 0.0, "A": 2.0, "B": None,
+                                 "C": None, "D": None, "E": None, "F": 5.0}
+
+
+def test_earlier_relax_steps_keep_raw_distances_without_verdict():
+    g = _downstream_cycle_graph()
+    steps, _, _, _ = bellman_ford(g, "S")
+    assert steps[-1]["kind"] == "cycle"
+    # 检测之前的每一步都不提前亮出 −∞ 结论，松弛数值照实保留
+    for s in steps[:-1]:
+        assert s["unbounded_nodes"] is None
+    # 最后一轮松弛结束时的中间值确实存在（只取决于做了几轮，不能当结论）
+    assert steps[-2]["distances"]["B"] == -15
+    assert steps[-2]["distances"]["E"] == -10
+
+
+def test_unreachable_negative_cycle_is_not_reported():
+    # 负权环 X→Y→Z→X 存在，但从源点 S 不可达：不影响任何最短距离
+    g = Graph.from_pairs(
+        ["S", "X", "Y", "Z"],
+        [("X", "Y", 1), ("Y", "Z", -3), ("Z", "X", 1)],
+    )
+    steps, dist, pred, cycle = bellman_ford(g, "S")
+    assert cycle is None
+    assert dist == {"S": 0.0, "X": math.inf, "Y": math.inf, "Z": math.inf}
+    assert steps[-1]["unbounded_nodes"] is None
+
+
 # ---------- Dijkstra 遇到负权边必须拒绝 ----------
 
 def test_dijkstra_rejects_negative_weights():

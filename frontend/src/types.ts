@@ -38,11 +38,14 @@ export interface Step {
   message: string;
   edge: StepEdge | null;
   relaxed: boolean;
+  /** null 表示 ∞（不可达）；unbounded_nodes 里的节点虽也是 null，但含义是 −∞ */
   distances: Record<string, number | null>;
   predecessors: Record<string, string | null>;
   settled: string[];
   queue: QueueEntry[] | null;
   round: number | null;
+  /** 仅检测到负权环的最后一步非空：最短距离为 −∞ 的节点（环 + 环下游），由后端判定 */
+  unbounded_nodes: string[] | null;
 }
 
 export interface RunResponse {
@@ -53,6 +56,8 @@ export interface RunResponse {
   distances: Record<string, number | null> | null;
   paths: Record<string, string[]> | null;
   cycle: string[] | null;
+  /** status=negative_cycle 时给出：距离为 −∞、最短路径不存在的节点 */
+  unbounded_nodes?: string[] | null;
 }
 
 export interface PresetNode {

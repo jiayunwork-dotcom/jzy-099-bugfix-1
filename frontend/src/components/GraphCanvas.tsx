@@ -10,6 +10,8 @@ export interface CanvasHighlights {
   pathEdges: Array<[string, string]>;
   cycleNodes: string[];
   cycleEdges: Array<[string, string]>;
+  /** 不在环上、但受负权环影响距离为 −∞ 的下游节点 */
+  affectedNodes: string[];
 }
 
 interface Props {
@@ -293,12 +295,14 @@ export default function GraphCanvas({ graph, onChange, mode, highlights, onNodeC
 
   const nodeFill = (id: string): string => {
     if (highlights.cycleNodes.includes(id)) return "#fecaca";
+    if (highlights.affectedNodes.includes(id)) return "#fee2e2";
     if (highlights.settled.includes(id)) return "#bbf7d0";
     if (id === highlights.source) return "#dbeafe";
     return "#ffffff";
   };
   const nodeStroke = (id: string): string => {
     if (highlights.cycleNodes.includes(id)) return "#dc2626";
+    if (highlights.affectedNodes.includes(id)) return "#f87171";
     if (id === highlights.target) return "#7c3aed";
     if (id === highlights.source) return "#2563eb";
     if (highlights.settled.includes(id)) return "#16a34a";
@@ -405,7 +409,14 @@ export default function GraphCanvas({ graph, onChange, mode, highlights, onNodeC
               r={R}
               fill={nodeFill(n.id)}
               stroke={nodeStroke(n.id)}
-              strokeWidth={n.id === highlights.target || highlights.cycleNodes.includes(n.id) ? 3 : 2}
+              strokeWidth={
+                n.id === highlights.target ||
+                highlights.cycleNodes.includes(n.id) ||
+                highlights.affectedNodes.includes(n.id)
+                  ? 3
+                  : 2
+              }
+              strokeDasharray={highlights.affectedNodes.includes(n.id) ? "5 3" : undefined}
             />
             <text x={n.x} y={n.y + 5} textAnchor="middle" className="node-label">
               {n.id}

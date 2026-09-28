@@ -107,10 +107,14 @@ export default function App() {
     }
     const cycleEdges: Array<[string, string]> = [];
     const cycleNodes: string[] = [];
+    const affectedNodes: string[] = [];
     if (run?.status === "negative_cycle" && atEnd && run.cycle) {
       const c = run.cycle;
       for (let i = 0; i + 1 < c.length; i++) cycleEdges.push([c[i], c[i + 1]]);
       cycleNodes.push(...c.slice(0, -1));
+      // 环下游、自身不在环上但距离同为 −∞ 的节点（后端判定，前端不重算）
+      const onCycle = new Set(cycleNodes);
+      affectedNodes.push(...(run.unbounded_nodes ?? []).filter((n) => !onCycle.has(n)));
     }
     return {
       source,
@@ -120,6 +124,7 @@ export default function App() {
       pathEdges,
       cycleNodes,
       cycleEdges,
+      affectedNodes,
     };
   }, [run, atEnd, target, step, source]);
 
