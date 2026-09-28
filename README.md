@@ -68,7 +68,7 @@ pytest
 │   │   ├── graph.py                # 图模型（带权有向图 + 邻接表）
 │   │   ├── dijkstra.py             # Dijkstra（负权边拒绝）
 │   │   ├── bellman_ford.py         # Bellman–Ford（按轮次松弛）
-│   │   ├── negative_cycle.py       # 负权环检测与环上节点回溯
+│   │   ├── negative_cycle.py       # 负权环检测、环上节点回溯与 −∞ 节点传播判定
 │   │   ├── path_reconstruction.py  # 最短路径回溯
 │   │   ├── trace.py                # 逐步快照构造
 │   │   ├── schemas.py              # 请求模型与输入校验
@@ -104,5 +104,8 @@ pytest
 
 响应包含 `steps`（逐步快照：`distances` / `predecessors` / `settled` / `queue` / `round` /
 当前边与松弛结果）、最终 `distances`（`null` 表示 ∞）、`paths`（回溯出的完整路径）。
-负权环时 `status = "negative_cycle"`，`distances` / `paths` 为 `null`，`cycle` 给出环上节点。
+负权环时 `status = "negative_cycle"`，`distances` / `paths` 为 `null`，`cycle` 给出环上节点，
+`negative_infinity_nodes` 给出所有最短距离因该环而不存在（−∞）的节点（环上节点 + 环下游可达节点，
+由后端判定）；最后一步快照的 `distances` 中这些节点为字符串 `"-Infinity"`，
+其余节点（含源点与环外分支）仍是确定的有限值。此前各轮松弛快照照实播放，不提前出现该结论。
 非法输入返回 `400` 与 `{"detail": "中文原因"}`。

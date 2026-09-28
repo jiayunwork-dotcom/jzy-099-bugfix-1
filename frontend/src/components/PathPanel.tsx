@@ -21,6 +21,8 @@ export default function PathPanel({ run, finished, nodeIds, target, onTargetChan
   }
 
   if (run.status === "negative_cycle") {
+    const affected = run.negative_infinity_nodes ?? [];
+    const safe = nodeIds.filter((id) => !affected.includes(id));
     return (
       <div className="panel">
         <h3>最短路径</h3>
@@ -28,8 +30,20 @@ export default function PathPanel({ run, finished, nodeIds, target, onTargetChan
           ⛔ 存在负权环：{run.cycle?.join(" → ")}，最短路不存在
         </div>
         <p className="muted">
-          负权环上的节点可以无限绕圈使路径权重任意小，因此不存在有限的最短距离。
+          沿负权环无限绕圈可使路径权重任意小，因此下列节点的最短距离为
+          <strong className="neg-inf-text"> −∞ </strong>
+          （包括环上节点以及从环还能走到的下游节点）：
         </p>
+        <div className="affected-chips">
+          {affected.map((id) => (
+            <span key={id} className="affected-chip mono">{id}: −∞</span>
+          ))}
+        </div>
+        {safe.length > 0 && (
+          <p className="muted">
+            其余节点（{safe.join("、")}）不受该环影响，距离仍是确定值，见距离表。
+          </p>
+        )}
       </div>
     );
   }

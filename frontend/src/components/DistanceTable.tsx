@@ -1,5 +1,5 @@
 import type { Step } from "../types";
-import { fmtDist } from "../types";
+import { fmtDist, NEG_INF } from "../types";
 
 interface Props {
   nodeIds: string[];
@@ -26,10 +26,15 @@ export default function DistanceTable({ nodeIds, step, source }: Props) {
             const d = step ? step.distances[id] : null;
             const pred = step ? step.predecessors[id] : null;
             const settled = step !== null && step.settled.includes(id);
+            const isNegInf = d === NEG_INF;
+            const isInf = d === null || d === undefined;
             return (
               <tr key={id} className={settled ? "settled" : ""}>
                 <td className="mono">{id}</td>
-                <td className={`mono ${d === null || d === undefined ? "inf" : ""}`}>
+                <td
+                  className={`mono ${isNegInf ? "neg-inf" : isInf ? "inf" : ""}`}
+                  title={isNegInf ? "存在从源点可达的负权环，最短距离为负无穷，最短路不存在" : undefined}
+                >
                   {step ? fmtDist(d) : "—"}
                 </td>
                 <td className="mono">{step ? pred ?? "—" : "—"}</td>

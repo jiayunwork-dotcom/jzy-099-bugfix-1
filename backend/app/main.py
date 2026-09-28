@@ -60,11 +60,15 @@ def run(req: RunRequest) -> dict:
     if req.algorithm == "dijkstra":
         steps, dist, pred = dijkstra(graph, req.source)
         cycle = None
+        neg_inf_nodes: list[str] = []
     else:
-        steps, dist, pred, cycle = bellman_ford(graph, req.source)
+        steps, dist, pred, cycle, neg_inf_nodes = bellman_ford(graph, req.source)
 
     if cycle is not None:
-        # 存在负权环：如实报告，绝不返回有限的最短距离
+        # 存在负权环：不存在唯一的「最终距离表」，顶层 distances/paths 为空；
+        # 但受环影响不到的节点（如源点本身、环外分支）距离仍是确定的，
+        # 交给前端的判定结果就是 negative_infinity_nodes ——
+        # 列表之外的节点距离照最后一步快照显示。
         return {
             "status": "negative_cycle",
             "algorithm": req.algorithm,
@@ -73,6 +77,7 @@ def run(req: RunRequest) -> dict:
             "distances": None,
             "paths": None,
             "cycle": cycle,
+            "negative_infinity_nodes": neg_inf_nodes,
         }
 
     assert dist is not None and pred is not None
@@ -84,6 +89,7 @@ def run(req: RunRequest) -> dict:
         "distances": snapshot_distances(dist),
         "paths": build_paths(pred, req.source, graph.nodes),
         "cycle": None,
+        "negative_infinity_nodes": [],
     }
 
 

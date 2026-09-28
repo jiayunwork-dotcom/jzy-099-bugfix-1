@@ -10,6 +10,8 @@ export interface CanvasHighlights {
   pathEdges: Array<[string, string]>;
   cycleNodes: string[];
   cycleEdges: Array<[string, string]>;
+  /** 最短距离为 −∞ 的节点（环上 + 环下游），用虚线红圈标出 */
+  negInfNodes: string[];
 }
 
 interface Props {
@@ -293,18 +295,23 @@ export default function GraphCanvas({ graph, onChange, mode, highlights, onNodeC
 
   const nodeFill = (id: string): string => {
     if (highlights.cycleNodes.includes(id)) return "#fecaca";
+    if (highlights.negInfNodes.includes(id)) return "#fee2e2";
     if (highlights.settled.includes(id)) return "#bbf7d0";
     if (id === highlights.source) return "#dbeafe";
     return "#ffffff";
   };
   const nodeStroke = (id: string): string => {
     if (highlights.cycleNodes.includes(id)) return "#dc2626";
+    if (highlights.negInfNodes.includes(id)) return "#dc2626";
     if (id === highlights.target) return "#7c3aed";
     if (id === highlights.source) return "#2563eb";
     if (highlights.settled.includes(id)) return "#16a34a";
     if (selected?.type === "node" && selected.id === id) return "#475569";
     return "#64748b";
   };
+  // 环上节点：实线红圈；仅在环下游的 −∞ 节点：虚线红圈
+  const isNegInfOnly = (id: string) =>
+    !highlights.cycleNodes.includes(id) && highlights.negInfNodes.includes(id);
 
   const editingEdge = editing ? graph.edges.find((x) => x.id === editing.edgeId) : undefined;
   const editingGeom =
@@ -405,7 +412,14 @@ export default function GraphCanvas({ graph, onChange, mode, highlights, onNodeC
               r={R}
               fill={nodeFill(n.id)}
               stroke={nodeStroke(n.id)}
-              strokeWidth={n.id === highlights.target || highlights.cycleNodes.includes(n.id) ? 3 : 2}
+              strokeWidth={
+                n.id === highlights.target ||
+                highlights.cycleNodes.includes(n.id) ||
+                highlights.negInfNodes.includes(n.id)
+                  ? 3
+                  : 2
+              }
+              strokeDasharray={isNegInfOnly(n.id) ? "6 4" : undefined}
             />
             <text x={n.x} y={n.y + 5} textAnchor="middle" className="node-label">
               {n.id}

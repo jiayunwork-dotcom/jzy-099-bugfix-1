@@ -62,7 +62,68 @@ def test_bellman_ford_reports_negative_cycle():
     assert data["distances"] is None, "有负权环时不得返回有限距离"
     assert data["paths"] is None
     assert set(data["cycle"][:-1]) == {"B", "C", "D"}
+    assert set(data["negative_infinity_nodes"]) == {"B", "C", "D"}
     assert data["steps"][-1]["kind"] == "cycle"
+
+
+def test_negative_cycle_downstream_nodes_are_negative_infinity():
+    """环 B→C→D→B：环上三点与仅在环下游的 E 为 -∞；S/A/F 距离照常。"""
+    body = {
+        "graph": {
+            "nodes": ["S", "A", "B", "C", "D", "E", "F"],
+            "edges": [
+                {"u": "S", "v": "A", "w": 2},
+                {"u": "A", "v": "B", "w": 1},
+                {"u": "B", "v": "C", "w": -1},
+                {"u": "C", "v": "D", "w": -1},
+                {"u": "D", "v": "B", "w": -1},
+                {"u": "D", "v": "E", "w": 4},
+                {"u": "A", "v": "F", "w": 3},
+            ],
+        },
+        "source": "S",
+        "algorithm": "bellman-ford",
+    }
+    data = client.post("/api/run", json=body).json()
+    assert data["status"] == "negative_cycle"
+    assert data["distances"] is None
+    # 判定由后端给出：环上 + 环下游
+    assert data["negative_infinity_nodes"] == ["B", "C", "D", "E"]
+
+    final = data["steps"][-1]
+    # 最后一步快照绝不允许再出现 B/C/D/E 的有限数
+    for n in ["B", "C", "D", "E"]:
+        assert final["distances"][n] == "-Infinity"
+    # 环影响不到的节点照常显示确定距离
+    assert final["distances"]["S"] == 0
+    assert final["distances"]["A"] == 2
+    assert final["distances"]["F"] == 5
+    assert final["negativeInfinity"] == ["B", "C", "D", "E"]
+
+    # 检测步骤之前：照实播放，-∞ 结论不提前出现
+    for s in data["steps"][:-1]:
+        assert s["negativeInfinity"] == []
+        assert "-Infinity" not in s["distances"].values()
+
+
+def test_unreachable_cycle_does_not_affect_result():
+    body = {
+        "graph": {
+            "nodes": ["S", "A", "X", "Y"],
+            "edges": [
+                {"u": "S", "v": "A", "w": 2},
+                {"u": "X", "v": "Y", "w": -1},
+                {"u": "Y", "v": "X", "w": -1},
+            ],
+        },
+        "source": "S",
+        "algorithm": "bellman-ford",
+    }
+    data = client.post("/api/run", json=body).json()
+    assert data["status"] == "ok"
+    assert data["cycle"] is None
+    assert data["negative_infinity_nodes"] == []
+    assert data["distances"] == {"S": 0, "A": 2, "X": None, "Y": None}
 
 
 def test_unreachable_distance_is_null():

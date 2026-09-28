@@ -351,6 +351,33 @@ table {
   color: var(--muted);
 }
 
+.dist-table td.neg-inf {
+  color: var(--danger);
+  font-weight: 700;
+  background: #fef2f2;
+}
+
+.neg-inf-text {
+  color: var(--danger);
+}
+
+.affected-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.affected-chip {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: var(--danger);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .matrix-scroll {
   overflow: auto;
   max-width: 100%;

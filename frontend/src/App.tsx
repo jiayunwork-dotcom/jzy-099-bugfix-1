@@ -107,10 +107,13 @@ export default function App() {
     }
     const cycleEdges: Array<[string, string]> = [];
     const cycleNodes: string[] = [];
+    const negInfNodes: string[] = [];
     if (run?.status === "negative_cycle" && atEnd && run.cycle) {
       const c = run.cycle;
       for (let i = 0; i + 1 < c.length; i++) cycleEdges.push([c[i], c[i + 1]]);
       cycleNodes.push(...c.slice(0, -1));
+      // 受负权环影响（最短距离 −∞）的节点集合直接采用后端判定，前端不再推导
+      negInfNodes.push(...(run.negative_infinity_nodes ?? []));
     }
     return {
       source,
@@ -120,6 +123,7 @@ export default function App() {
       pathEdges,
       cycleNodes,
       cycleEdges,
+      negInfNodes,
     };
   }, [run, atEnd, target, step, source]);
 

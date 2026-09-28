@@ -4,7 +4,8 @@
 - 最多进行 |V|-1 轮「对所有边松弛」；某一轮没有任何松弛则提前结束。
 - 之后若仍存在可松弛的边，说明从源点可达负权环：
   返回的 dist / pred 为 None，绝不把被负权环污染的距离当作结果交出去，
-  同时给出环上的节点序列。
+  同时给出环上的节点序列，以及所有最短距离因此不存在（-∞）的节点
+  （环上节点 + 从环沿出边可达的下游节点）。
 """
 
 from __future__ import annotations
@@ -12,13 +13,19 @@ from __future__ import annotations
 import math
 
 from .graph import Graph
-from .negative_cycle import find_negative_cycle
+from .negative_cycle import find_negative_cycle, find_unbounded_nodes
 from .trace import fmt, make_step
 
 
 def bellman_ford(
     graph: Graph, source: str
-) -> tuple[list[dict], dict[str, float] | None, dict[str, str | None] | None, list[str] | None]:
+) -> tuple[
+    list[dict],
+    dict[str, float] | None,
+    dict[str, str | None] | None,
+    list[str] | None,
+    list[str] | None,
+]:
     dist = {n: math.inf for n in graph.nodes}
     pred: dict[str, str | None] = {n: None for n in graph.nodes}
     dist[source] = 0.0
@@ -89,15 +96,21 @@ def bellman_ford(
 
     cycle = find_negative_cycle(graph, dist, pred)
     if cycle is not None:
+        # 判定哪些节点的最短距离因这个（以及任何从源点可达的）负权环而不存在：
+        # 环上的点，以及从环沿出边还能走到的点，距离一律为 -∞。
+        unbounded = find_unbounded_nodes(graph, dist)
+        unbounded_set = set(unbounded)
         steps.append(
             make_step(
                 "cycle",
                 f"第 {n} 轮仍存在可松弛的边 → 检测到从源点可达的负权环："
-                f"{' → '.join(cycle)}。存在负权环，最短路不存在",
+                f"{' → '.join(cycle)}。存在负权环，最短路不存在；"
+                f"节点 {'、'.join(unbounded)} 的最短距离为 −∞（可无限绕环使其任意小）",
                 dist, pred, settled, round_=n,
+                neg_inf_nodes=unbounded_set,
             )
         )
-        return steps, None, None, cycle
+        return steps, None, None, cycle, unbounded
 
     steps.append(
         make_step(
@@ -106,4 +119,4 @@ def bellman_ford(
             dist, pred, settled, round_=max_rounds,
         )
     )
-    return steps, dist, pred, None
+    return steps, dist, pred, None, None
